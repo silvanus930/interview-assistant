@@ -127,7 +127,7 @@ export async function systemView(root) {
     h(
       'section',
       { class: 'panel' },
-      mode('api_key', 'Anthropic API key', 'Pay-per-use billing through the Claude Console. Every account on this server can generate answers. This is the mode for serving other people.'),
+      mode('api_key', 'Anthropic API key', 'Pay-per-use billing through the Claude Console. Administrators can always generate answers; other users can once you accept their request under Users. This is the mode for serving other people.'),
       mode('subscription', 'Personal Claude subscription (Pro / Max)', 'Uses the Claude Code login on this server. A personal subscription is for its owner only, so in this mode only administrator accounts can generate answers; other users are told to ask you for API-key mode.'),
       field('API key', secretInput('anthropic_api_key', settings.anthropic_api_key_hint, 'sk-ant-…'), 'Used in API key mode. Stored in this server’s database.'),
       h('div', { class: 'row' }, h('button', { type: 'button', onclick: testClaude }, 'Save & test Claude'), claudeResult),
