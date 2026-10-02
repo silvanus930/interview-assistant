@@ -78,16 +78,16 @@ async function signOut() {
   }
   setActAs(null);
   session.me = null;
-  showAuth('login');
+  showAuth();
 }
 
-function showAuth(mode) {
+function showAuth() {
   if (cleanup) cleanup();
   cleanup = null;
   clearInterval(statusTimer);
   main = null;
   document.getElementById('modal-root').replaceChildren();
-  app.replaceChildren(authView(mode, (user) => {
+  app.replaceChildren(authView((user) => {
     session.me = user;
     start();
   }));
@@ -149,8 +149,7 @@ async function boot() {
     return;
   }
   session.me = state.user;
-  if (state.setup_required) showAuth('setup');
-  else if (!state.user) showAuth('login');
+  if (!state.user) showAuth();
   else start();
 }
 
@@ -160,7 +159,7 @@ window.addEventListener('ia-signed-out', () => {
   session.me = null;
   setActAs(null);
   toast('You have been signed out.', 'error');
-  showAuth('login');
+  showAuth();
 });
 // The Users page asks to open someone's workspace.
 window.addEventListener('ia-open-workspace', (event) => openWorkspace(event.detail));

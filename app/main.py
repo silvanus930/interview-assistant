@@ -3,7 +3,7 @@ import logging
 import re
 import time
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlparse
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, Response, UploadFile
@@ -13,7 +13,8 @@ from pydantic import BaseModel, Field, field_validator
 
 from . import auth, claude_runner, db, telegram, workflow
 from .claude_runner import ClaudeError, run_claude
-from .config import ALLOWED_HOSTS, EFFORT_LEVELS, MAX_RESUME_BYTES, MIN_PASSWORD_LENGTH, WEB_DIR
+from .config import (ALLOWED_HOSTS, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_NAME, DEFAULT_ADMIN_PASSWORD, EFFORT_LEVELS,
+                     MAX_RESUME_BYTES, MIN_PASSWORD_LENGTH, WEB_DIR)
 from .resume import ResumeError, extract_text
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -37,6 +38,9 @@ listener = telegram.TelegramListener(on_telegram_question)
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     db.init_db()
+    if db.count_users() == 0:
+        db.create_user(email=DEFAULT_ADMIN_EMAIL, name=DEFAULT_ADMIN_NAME,
+                       password_hash=auth.hash_password(DEFAULT_ADMIN_PASSWORD), role="admin")
     await listener.restart()
     yield
     await listener.stop()
@@ -196,6 +200,10 @@ class AccountIn(BaseModel):
     _check_effort = field_validator("effort")(_effort)
 
 
+class AccessDecisionIn(BaseModel):
+    decision: Literal["approve", "reject", "revoke"]
+
+
 class UserCreateIn(SetupIn):
     role: str = "user"
 
@@ -300,18 +308,7 @@ def _check_model(model: str) -> str:
 @app.get("/api/auth/state")
 def auth_state(request: Request) -> dict[str, Any]:
     user = auth.session_user(request)
-    return {"setup_required": db.count_users() == 0, "user": _public_user(user) if user else None}
-
-
-@app.post("/api/auth/setup", status_code=201)
-def auth_setup(body: SetupIn, request: Request, response: Response) -> dict[str, Any]:
-    """Create the first account, which becomes the administrator."""
-    if db.count_users() > 0:
-        raise HTTPException(409, "This server is already set up. Sign in instead.")
-    user = db.create_user(email=body.email, name=body.name, password_hash=auth.hash_password(body.password),
-                          role="admin")
-    auth.start_session(response, request, user["id"])
-    return {"user": _public_user(user)}
+    return {"user": _public_user(user) if user else None}
 
 
 @app.post("/api/auth/login")
@@ -351,6 +348,24 @@ def account_update(body: AccountIn, user: User = Depends(auth.signed_in)) -> dic
             "signed_out": "password_hash" in fields}
 
 
+@app.post("/api/account/access-request")
+def account_request_access(user: User = Depends(auth.signed_in)) -> dict[str, Any]:
+    """Ask an administrator for permission to generate answers on the server's API key."""
+    if user["role"] == "admin":
+        raise HTTPException(409, "Administrators can always generate answers.")
+    if user["access_status"] == "approved":
+        raise HTTPException(409, "Your account already has access.")
+    updated = db.update_user(user["id"], access_status="pending", access_requested_at=db.now())
+    return _public_user(updated)
+
+
+@app.delete("/api/account/access-request")
+def account_cancel_access(user: User = Depends(auth.signed_in)) -> dict[str, Any]:
+    if user["access_status"] != "pending":
+        raise HTTPException(409, "There is no pending request to cancel.")
+    return _public_user(db.update_user(user["id"], access_status="none"))
+
+
 @app.post("/api/account/extension-key")
 def account_new_key(user: User = Depends(auth.signed_in)) -> dict[str, Any]:
     """Sign the browser extension out everywhere by replacing its key."""
@@ -368,6 +383,7 @@ def status(user: User = Depends(auth.current_user), me: User = Depends(auth.sign
         "auth_mode": settings["auth_mode"],
         "default_model": settings["default_model"],
         "can_generate": workflow.can_generate(user, settings),
+        "access_message": workflow.access_block(user, settings),
         "telegram": {
             "state": bot["state"], "bot_username": bot["bot_username"], "bot_name": bot["bot_name"],
             "error": bot["error"] if me["role"] == "admin" else "",
@@ -673,6 +689,16 @@ def admin_user_update(user_id: int, body: UserUpdateIn, me: User = Depends(auth.
     return _public_user(db.update_user(user_id, **fields))
 
 
+@app.post("/api/admin/users/{user_id}/access")
+def admin_user_access(user_id: int, body: AccessDecisionIn, _: User = Depends(auth.admin_user)) -> dict[str, Any]:
+    """Approve or reject a request to generate answers, or revoke access already given."""
+    target = _or_404(db.get_user(user_id), "User")
+    if target["role"] == "admin":
+        raise HTTPException(409, "Administrators can always generate answers.")
+    status = {"approve": "approved", "reject": "rejected", "revoke": "none"}[body.decision]
+    return _public_user(db.update_user(user_id, access_status=status))
+
+
 @app.delete("/api/admin/users/{user_id}", status_code=204)
 def admin_user_delete(user_id: int, me: User = Depends(auth.admin_user)) -> None:
     if user_id == me["id"]:
@@ -802,13 +828,13 @@ def ext_login(body: LoginIn, request: Request) -> dict[str, Any]:
 
 @app.get("/api/ext/ping")
 def ext_ping(user: User = Depends(auth.extension_user)) -> dict[str, Any]:
-    ready = workflow.can_generate(user)
+    blocked = workflow.access_block(user)
     return {
         "ok": True,
         "app": "Interview Assistant",
         "user": {"name": user["name"], "email": user["email"]},
-        "can_generate": ready,
-        "message": "" if ready else workflow.SUBSCRIPTION_ONLY_ADMIN,
+        "can_generate": not blocked,
+        "message": blocked,
         "profiles": [
             {"id": p["id"], "name": p["name"], "has_resume": bool(p["resume_text"].strip()),
              "has_chat": bool(p["telegram_chat_id"])}

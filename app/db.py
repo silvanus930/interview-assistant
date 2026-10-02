@@ -95,6 +95,9 @@ MIGRATIONS = {
     "runs": {"context": "TEXT NOT NULL DEFAULT ''", "session": "TEXT NOT NULL DEFAULT ''", "user_id": "INTEGER"},
     "profiles": {"user_id": "INTEGER"},
     "workflows": {"user_id": "INTEGER", "is_template": "INTEGER NOT NULL DEFAULT 0"},
+    # Whether a non-admin may generate answers on the server's API key:
+    # none → pending (they asked) → approved / rejected (the admin decided).
+    "users": {"access_status": "TEXT NOT NULL DEFAULT 'none'", "access_requested_at": "TEXT NOT NULL DEFAULT ''"},
 }
 
 PROFILE_FIELDS = (
@@ -103,7 +106,7 @@ PROFILE_FIELDS = (
 )
 WORKFLOW_FIELDS = ("name", "description", "system_prompt", "telegram_template", "steps")
 USER_FIELDS = ("email", "name", "password_hash", "role", "is_active", "model", "effort", "extension_key",
-               "last_login_at")
+               "last_login_at", "access_status", "access_requested_at")
 
 
 def now() -> str:

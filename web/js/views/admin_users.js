@@ -1,16 +1,53 @@
 // Admin: create and manage accounts.
 
 import { session } from '../session.js';
-import { api, busy, confirmDialog, field, formatTime, h, modal, toast } from '../ui.js';
+import { api, busy, confirmDialog, field, formatTime, h, modal, mount, toast } from '../ui.js';
 
 export async function usersView(root) {
   const body = h('tbody');
+  const requests = h('div');
   let meta = null;
+  let status = null;
 
   async function refresh() {
-    const [users, m] = await Promise.all([api('GET', '/admin/users'), meta || api('GET', '/meta')]);
+    const [users, m, s] = await Promise.all([api('GET', '/admin/users'), meta || api('GET', '/meta'), status || api('GET', '/status')]);
     meta = m;
+    status = s;
     body.replaceChildren(...users.map(row));
+    const pending = users.filter((u) => u.role !== 'admin' && u.access_status === 'pending');
+    mount(
+      requests,
+      pending.length
+        ? [
+            h('h2', null, `Access requests (${pending.length})`),
+            status.auth_mode === 'api_key'
+              ? null
+              : h('div', { class: 'banner' }, h('span', null, 'The server is on a personal Claude subscription, which only administrators may use. Approved users can generate answers once you switch to an Anthropic API key.'), h('a', { class: 'button small', href: '#/system' }, 'Open Claude settings')),
+            h('div', { class: 'table-wrap' }, h('table', null,
+              h('thead', null, h('tr', null, ['User', 'Requested', ''].map((t) => h('th', null, t)))),
+              h('tbody', null, ...pending.map((user) => h('tr', null,
+                h('td', null, h('b', null, user.name), h('span', { class: 'sub' }, user.email)),
+                h('td', { class: 'nowrap muted' }, user.access_requested_at ? formatTime(user.access_requested_at) : ''),
+                h('td', { class: 'actions' },
+                  h('button', { class: 'small danger ghost', onclick: decide(user, 'reject') }, 'Reject'), ' ',
+                  h('button', { class: 'small primary', onclick: decide(user, 'approve') }, 'Accept'))))))),
+          ]
+        : null,
+    );
+  }
+
+  const decide = (user, decision) => (event) =>
+    busy(event.target, async () => {
+      await api('POST', `/admin/users/${user.id}/access`, { decision });
+      const done = { approve: `${user.name} can now generate answers.`, reject: `${user.name}'s request was rejected.`, revoke: `${user.name} can no longer generate answers.` };
+      toast(done[decision], 'ok');
+      await refresh();
+    });
+
+  function access(user) {
+    if (user.role === 'admin') return h('span', { class: 'badge ok' }, 'always');
+    const [tone, label] = { approved: ['ok', 'approved'], pending: ['warn', 'requested'], rejected: ['bad', 'rejected'] }[user.access_status] || ['', 'no access'];
+    return h('span', { class: `badge ${tone}` }, label);
   }
 
   function row(user) {
@@ -20,6 +57,7 @@ export async function usersView(root) {
       { class: user.is_active ? '' : 'off' },
       h('td', null, h('b', null, user.name), me ? h('span', { class: 'badge accent', style: 'margin-left:8px' }, 'you') : null, h('span', { class: 'sub' }, user.email)),
       h('td', null, h('span', { class: `badge ${user.role === 'admin' ? 'accent' : ''}` }, user.role), user.is_active ? null : h('span', { class: 'badge bad', style: 'margin-left:6px' }, 'disabled')),
+      h('td', null, access(user)),
       h('td', null, user.model || h('span', { class: 'muted' }, 'default')),
       h('td', { class: 'nowrap' }, `${user.profile_count} · ${user.workflow_count}`),
       h('td', { class: 'nowrap' }, user.run_count, h('span', { class: 'sub' }, user.last_run_at ? `last ${formatTime(user.last_run_at)}` : 'never')),
@@ -28,6 +66,11 @@ export async function usersView(root) {
         'td',
         { class: 'actions' },
         me ? null : h('button', { class: 'small', title: 'Open their profiles, workflows and history', onclick: () => window.dispatchEvent(new CustomEvent('ia-open-workspace', { detail: user })) }, 'Open workspace'),
+        ' ',
+        user.role === 'admin' ? null
+          : user.access_status === 'approved' ? h('button', { class: 'small danger ghost', onclick: decide(user, 'revoke') }, 'Revoke access')
+          : user.access_status === 'pending' ? null
+          : h('button', { class: 'small', title: 'Let them generate answers without a request', onclick: decide(user, 'approve') }, 'Grant access'),
         ' ',
         h('button', { class: 'small', onclick: () => edit(user) }, 'Edit'),
       ),
@@ -98,9 +141,10 @@ export async function usersView(root) {
   root.append(
     h('div', { class: 'title' }, h('div', null, h('h1', null, 'Users'), h('div', { class: 'sub' }, 'Each user has their own résumés, workflows, history and extension sign-in.')), h('button', { class: 'primary', onclick: () => edit(null) }, 'New user')),
     h('div', { class: 'table-wrap' }, h('table', null,
-      h('thead', null, h('tr', null, ['User', 'Role', 'Model', 'Profiles · Workflows', 'Answers', 'Last sign-in', ''].map((t) => h('th', null, t)))),
+      h('thead', null, h('tr', null, ['User', 'Role', 'Answer access', 'Model', 'Profiles · Workflows', 'Answers', 'Last sign-in', ''].map((t) => h('th', null, t)))),
       body)),
   );
+  root.insertBefore(requests, root.children[1]);
   await refresh();
   return undefined;
 }

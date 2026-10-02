@@ -206,12 +206,29 @@ SUBSCRIPTION_ONLY_ADMIN = (
     "This server runs on its owner's Claude subscription, which only administrator accounts may use. "
     "Ask the administrator to add an Anthropic API key (Admin → Claude) so that other accounts can generate answers."
 )
+ACCESS_MESSAGES = {
+    "none": "Your account cannot generate answers yet. Request access under Account; an administrator will review it.",
+    "pending": "Your request to generate answers is waiting for an administrator to approve it.",
+    "rejected": "An administrator declined your request to generate answers. You can request again under Account.",
+}
+
+
+def access_block(user: dict[str, Any], settings: dict[str, str] | None = None) -> str:
+    """Why this account cannot generate answers, or "" if it can.
+
+    A personal Claude subscription may serve its owner only, so on one only
+    administrators generate. On an API key, other accounts need an
+    administrator's approval."""
+    if user["role"] == "admin":
+        return ""
+    settings = settings or db.get_settings()
+    if settings["auth_mode"] != "api_key":
+        return SUBSCRIPTION_ONLY_ADMIN
+    return ACCESS_MESSAGES.get(user.get("access_status") or "none", "")
 
 
 def can_generate(user: dict[str, Any], settings: dict[str, str] | None = None) -> bool:
-    """A personal Claude subscription may serve its owner only; other accounts need the server on an API key."""
-    settings = settings or db.get_settings()
-    return settings["auth_mode"] == "api_key" or user["role"] == "admin"
+    return not access_block(user, settings)
 
 
 def resolve_model(step: dict[str, Any], user: dict[str, Any], settings: dict[str, str]) -> tuple[str, str]:
@@ -301,8 +318,9 @@ async def _execute(
         return "no chat ID" if wanted_without_chat else ""
 
     try:
-        if not can_generate(owner, settings):
-            raise ClaudeError(SUBSCRIPTION_ONLY_ADMIN)
+        blocked = access_block(owner, settings)
+        if blocked:
+            raise ClaudeError(blocked)
         if not steps:
             raise ClaudeError("This workflow has no enabled steps.")
         for index, step in enumerate(steps):

@@ -20,7 +20,7 @@ python -m venv .venv
 
 The app opens at <http://127.0.0.1:8765>. Requirements: Python 3.10+ and [Claude Code](https://claude.com/claude-code) installed on the server.
 
-The first visit asks you to create the **administrator account**. If the server already held data from before accounts existed, that account takes it over (profiles, workflows, history, and the extension's existing connection).
+On first start, when the server has no accounts, it creates the **administrator account** from `INTERVIEW_ADMIN_EMAIL` and `INTERVIEW_ADMIN_PASSWORD` (defaults are in `app/config.py`); there is no setup screen. Sign in with it and change the password under **Account**. If the server already held data from before accounts existed, that account takes it over (profiles, workflows, history, and the extension's existing connection).
 
 ## Roles
 
@@ -29,6 +29,8 @@ The first visit asks you to create the **administrator account**. If the server 
 | Own workspace: profiles (résumés), workflows, history, Ask | yes | yes |
 | Account: name, password, model preference | yes | yes |
 | Users: create, edit, disable, reset password, delete | yes | no |
+| Answer access: request it | always has it | yes |
+| Answer access: accept, reject, grant, revoke | yes | no |
 | Open another user's workspace to help them | yes | no |
 | Templates: the starting workflows every new user receives | yes | read, and copy into own workflows |
 | Claude connection, allowed models, Telegram bot | yes | no |
@@ -40,7 +42,7 @@ Accounts are created by an administrator; there is no public sign-up. A new user
 
 Set under **Claude & Telegram**:
 
-- **Anthropic API key** — pay-per-use. Every account can generate answers. Use this when the server has users other than you.
+- **Anthropic API key** — pay-per-use. Administrators can always generate answers; any other account needs an administrator's approval. A user requests it under **Account → Answer access**; the request shows up at the top of **Users**, where the administrator accepts or rejects it (and can later grant or revoke access from the user's row). Use this when the server has users other than you.
 - **Personal Claude subscription (Pro / Max)** — uses the Claude Code login on the server (`claude` once in a terminal to log in). A personal subscription is for its owner, so in this mode **only administrator accounts can generate answers**; other users see a message asking the administrator to switch to an API key. Anthropic does not allow a subscription's login or limits to be offered to other people through a product, and this rule keeps the server within that.
 
 **Models.** The administrator keeps the list of models users may choose. For each answer the model is the workflow step's choice, else the user's preference (Account), else the server default. A choice that is not on the list falls back to the next one. The aliases `opus`, `sonnet` and `haiku` follow the newest version the server's Claude Code supports; update Claude Code to unlock newer models.

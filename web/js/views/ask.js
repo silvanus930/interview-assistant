@@ -22,10 +22,10 @@ function remember(id) {
 
 export async function askView(root) {
   const [profiles, workflows, status] = await Promise.all([api('GET', '/profiles'), api('GET', '/workflows'), api('GET', '/status')]);
-  // A personal Claude subscription only serves administrators; say so before they try.
+  // Say why this account cannot generate answers before they try.
   const blocked = status.can_generate
     ? null
-    : h('div', { class: 'banner' }, h('span', null, 'This server runs on its owner’s Claude subscription, which only administrator accounts may use. Ask your administrator to switch the server to an Anthropic API key so your account can generate answers.'));
+    : h('div', { class: 'banner' }, h('span', null, status.access_message), h('a', { class: 'button small', href: '#/account' }, 'Open Account'));
 
   if (!profiles.length) {
     mount(

@@ -1,9 +1,9 @@
 // The signed-in person's own account: name, password, model preference, and the extension.
 
-import { api, busy, confirmDialog, copyText, field, h, toast } from '../ui.js';
+import { api, busy, confirmDialog, copyText, field, formatTime, h, toast } from '../ui.js';
 
 export async function accountView(root) {
-  const [account, meta] = await Promise.all([api('GET', '/account'), api('GET', '/meta')]);
+  const [account, meta, status] = await Promise.all([api('GET', '/account'), api('GET', '/meta'), api('GET', '/status')]);
   const draft = { name: account.name, email: account.email, model: account.model, effort: account.effort };
   const passwords = { current_password: '', new_password: '' };
 
@@ -44,6 +44,31 @@ export async function accountView(root) {
       toast('The extension has been signed out everywhere.', 'ok');
     });
 
+  // Non-admins generate answers on the server's API key only once an administrator approves.
+  const accessPanel = h('section', { class: 'panel' });
+  function renderAccess(state, message) {
+    const labels = { approved: ['ok', 'Approved'], pending: ['warn', 'Waiting for approval'], rejected: ['bad', 'Declined'], none: ['', 'Not requested'] };
+    const [tone, label] = labels[state] || labels.none;
+    const send = (method) => (event) =>
+      busy(event.target, async () => {
+        const updated = await api(method, '/account/access-request');
+        toast(method === 'POST' ? 'Request sent to your administrator.' : 'Request cancelled.', 'ok');
+        const fresh = await api('GET', '/status');
+        renderAccess(updated.access_status, fresh.access_message);
+      });
+    const action =
+      state === 'pending' ? h('button', { class: 'ghost', onclick: send('DELETE') }, 'Cancel request')
+      : state === 'approved' ? null
+      : h('button', { class: 'primary', onclick: send('POST') }, state === 'rejected' ? 'Request again' : 'Request answer access');
+    accessPanel.replaceChildren(
+      h('div', { class: 'row between' },
+        h('div', null, h('span', { class: `badge ${tone}` }, label), state === 'pending' && account.access_requested_at ? h('span', { class: 'muted', style: 'margin-left:8px;font-size:13px' }, `requested ${formatTime(account.access_requested_at)}`) : null),
+        action),
+      h('p', { class: 'hint' }, message || 'Your account can generate answers.'),
+    );
+  }
+  if (account.role !== 'admin') renderAccess(account.access_status, status.access_message);
+
   const serverUrl = h('input', { type: 'text', readOnly: true, value: location.origin });
 
   root.append(
@@ -51,6 +76,8 @@ export async function accountView(root) {
 
     h('h2', null, 'Profile'),
     h('section', { class: 'panel' }, h('div', { class: 'row' }, field('Name', text('name')), field('Email (used to sign in)', text('email', { type: 'email' })))),
+
+    account.role !== 'admin' ? [h('h2', null, 'Answer access'), accessPanel] : null,
 
     h('h2', null, 'Answer preferences'),
     h(

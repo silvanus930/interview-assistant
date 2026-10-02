@@ -21,6 +21,11 @@ ALLOWED_HOSTS = [
     for h in (os.environ.get("INTERVIEW_ALLOWED_HOSTS") or "127.0.0.1,localhost,[::1]").split(",")
     if h.strip()
 ]
+# The administrator account created on first start, when the server has no
+# accounts yet. There is no setup screen; change the password under Account.
+DEFAULT_ADMIN_EMAIL = os.environ.get("INTERVIEW_ADMIN_EMAIL") or "silvanus97930@gmail.com"
+DEFAULT_ADMIN_PASSWORD = os.environ.get("INTERVIEW_ADMIN_PASSWORD") or "!vidrnd930!"
+DEFAULT_ADMIN_NAME = os.environ.get("INTERVIEW_ADMIN_NAME") or "Administrator"
 SESSION_DAYS = 30
 MIN_PASSWORD_LENGTH = 8
 
