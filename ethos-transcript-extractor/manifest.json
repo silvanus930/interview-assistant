@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Ethos Transcript Extractor",
+  "version": "1.8.0",
+  "description": "Captures the live call transcript on askethos.com, pulls out new questions, gets answers from the local Interview Assistant, and sends them to Telegram.",
+  "permissions": [
+    "storage",
+    "scripting",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://*.askethos.com/*",
+    "https://api.telegram.org/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "action": {
+    "default_title": "Ethos Transcript",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://agent.askethos.com/*",
+        "https://*.askethos.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "commands": {
+    "toggle-panel": {
+      "suggested_key": {
+        "default": "Alt+Shift+T"
+      },
+      "description": "Show / hide the transcript panel"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}
