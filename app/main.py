@@ -355,6 +355,8 @@ def account_request_access(user: User = Depends(auth.signed_in)) -> dict[str, An
         raise HTTPException(409, "Administrators can always generate answers.")
     if user["access_status"] == "approved":
         raise HTTPException(409, "Your account already has access.")
+    if db.get_settings()["auth_mode"] != "api_key":
+        raise HTTPException(409, workflow.SUBSCRIPTION_ONLY_ADMIN)
     updated = db.update_user(user["id"], access_status="pending", access_requested_at=db.now())
     return _public_user(updated)
 

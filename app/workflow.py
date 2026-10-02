@@ -203,8 +203,8 @@ def resolve_workflow(profile: dict[str, Any], workflow_id: int | None = None) ->
 
 
 SUBSCRIPTION_ONLY_ADMIN = (
-    "This server runs on its owner's Claude subscription, which only administrator accounts may use. "
-    "Ask the administrator to add an Anthropic API key (Admin → Claude) so that other accounts can generate answers."
+    "On this server only administrators can generate answers: it runs on the administrator's personal "
+    "Claude subscription, which is for its owner only."
 )
 ACCESS_MESSAGES = {
     "none": "Your account cannot generate answers yet. Request access under Account; an administrator will review it.",

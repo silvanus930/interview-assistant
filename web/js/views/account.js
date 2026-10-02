@@ -67,7 +67,9 @@ export async function accountView(root) {
       h('p', { class: 'hint' }, message || 'Your account can generate answers.'),
     );
   }
-  if (account.role !== 'admin') renderAccess(account.access_status, status.access_message);
+  // On a personal subscription only admins generate, so there is nothing to request.
+  const canRequest = account.role !== 'admin' && status.auth_mode === 'api_key';
+  if (canRequest) renderAccess(account.access_status, status.access_message);
 
   const serverUrl = h('input', { type: 'text', readOnly: true, value: location.origin });
 
@@ -77,7 +79,7 @@ export async function accountView(root) {
     h('h2', null, 'Profile'),
     h('section', { class: 'panel' }, h('div', { class: 'row' }, field('Name', text('name')), field('Email (used to sign in)', text('email', { type: 'email' })))),
 
-    account.role !== 'admin' ? [h('h2', null, 'Answer access'), accessPanel] : null,
+    canRequest ? [h('h2', null, 'Answer access'), accessPanel] : null,
 
     h('h2', null, 'Answer preferences'),
     h(
