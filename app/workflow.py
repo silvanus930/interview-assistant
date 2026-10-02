@@ -8,6 +8,7 @@ from datetime import date
 from typing import Any
 
 from . import db, telegram
+from . import claude_runner
 from .claude_runner import ClaudeError, run_claude
 
 log = logging.getLogger("workflow")
@@ -124,6 +125,22 @@ def preview(workflow: dict[str, Any], profile: dict[str, Any], question: str) ->
         variables["previous"] = placeholder
         variables[f"steps.{step['key']}"] = placeholder
     return {"system_prompt": render(workflow["system_prompt"], base_variables(profile, question)), "steps": steps}
+
+
+def prepare(profile: dict[str, Any], workflow: dict[str, Any]) -> bool:
+    """Get Claude running for this profile's next question, so the answer does not wait for it to start.
+
+    Returns False when there is nothing to prepare (the owner may not generate, or no steps).
+    """
+    owner = db.get_user(profile["user_id"])
+    settings = db.get_settings()
+    steps = [s for s in workflow["steps"] if s.get("enabled", True)]
+    if owner is None or not steps or not can_generate(owner, settings):
+        return False
+    system_prompt = render(workflow["system_prompt"], prompt_variables(workflow, profile, ""))
+    model, effort = resolve_model(steps[0], owner, settings)
+    claude_runner.keep_ready(system_prompt=system_prompt, model=model, effort=effort)
+    return True
 
 
 class RunEvents:
@@ -308,6 +325,7 @@ async def _execute(
                     model=model,
                     effort=effort,
                     on_delta=on_delta,
+                    keep_warm=True,  # the next question in this interview is likely soon
                 )
             except ClaudeError:
                 record["status"] = "error"

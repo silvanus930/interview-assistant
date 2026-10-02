@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Ethos Transcript Extractor",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Captures the live call transcript on askethos.com, pulls out new questions, gets answers from the local Interview Assistant, and sends them to Telegram.",
   "permissions": [
     "storage",

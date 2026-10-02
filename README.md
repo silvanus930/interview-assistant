@@ -45,6 +45,21 @@ Set under **Claude & Telegram**:
 
 **Models.** The administrator keeps the list of models users may choose. For each answer the model is the workflow step's choice, else the user's preference (Account), else the server default. A choice that is not on the list falls back to the next one. The aliases `opus`, `sonnet` and `haiku` follow the newest version the server's Claude Code supports; update Claude Code to unlock newer models.
 
+## Speed
+
+Most of the wait for a short answer used to be Claude Code starting up, not the model. The server now keeps a Claude process ready for the question that is likely next: after every answer, when the extension reports that a call has started, and when the Ask page is opened. A ready process answers one question and is replaced; unused ones expire after 15 minutes, and at most 8 are kept.
+
+Measured on one machine with the default one-step workflow and a résumé-sized profile:
+
+| | First words | Full answer |
+| --- | --- | --- |
+| Cold start (first question after a long pause) | about 5 s | about 7 to 8 s |
+| Process ready | about 1.5 s | about 3 s |
+
+With a process ready, Haiku, Sonnet and Opus all took about 3 seconds, so the model matters little for speed. In the same test only Opus answered a screening question ("at least 5 years as a Senior?" for a résumé with four and a half) with an honest "not quite"; Haiku and Sonnet opened with "Yes". The default `opus` at effort `low` is therefore both the fastest setup and the most accurate one.
+
+A ready process only matches the exact system prompt and model it was started for. Keep the résumé and other per-profile text in the system prompt (as the templates do) and the per-question text in the step prompt. A two-step workflow pays one cold start per extra step on the first question.
+
 ## A user's workspace
 
 | Page | What it does |

@@ -1,4 +1,4 @@
-# Ethos Transcript Extractor / Ethos Copilot (Chrome extension) v1.8.0
+# Ethos Transcript Extractor / Ethos Copilot (Chrome extension) v1.9.0
 
 Docks a panel beside the Ethos call window on `agent.askethos.com`, reads the live transcript, and gets a short spoken-style answer for what Ethos just asked from the Interview Assistant app running on this computer. The answer shows in the panel and is sent to Telegram.
 

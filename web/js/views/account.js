@@ -16,7 +16,7 @@ export async function accountView(root) {
     'select',
     { value: draft.model, onchange: (e) => (draft.model = e.target.value) },
     h('option', { value: '' }, `Server default — ${meta.default_model}`),
-    ...meta.models.map((m) => h('option', { value: m.id }, m.label && m.label !== m.id ? `${m.id} — ${m.label}` : m.id)),
+    ...meta.models.map((m) => h('option', { value: m.id }, !m.label || m.label === m.id ? m.id : m.label.startsWith(m.id) ? m.label : `${m.id} — ${m.label}`)),
   );
   const effort = h(
     'select',

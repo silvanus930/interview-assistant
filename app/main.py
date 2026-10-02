@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
-from . import auth, db, telegram, workflow
+from . import auth, claude_runner, db, telegram, workflow
 from .claude_runner import ClaudeError, run_claude
 from .config import ALLOWED_HOSTS, EFFORT_LEVELS, MAX_RESUME_BYTES, MIN_PASSWORD_LENGTH, WEB_DIR
 from .resume import ResumeError, extract_text
@@ -40,6 +40,7 @@ async def lifespan(_: FastAPI):
     await listener.restart()
     yield
     await listener.stop()
+    await claude_runner.shutdown()
 
 
 app = FastAPI(title="Interview Assistant", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
@@ -238,6 +239,11 @@ class AdminSettingsIn(BaseModel):
         if value not in ("subscription", "api_key"):
             raise ValueError("auth_mode must be 'subscription' or 'api_key'.")
         return value
+
+
+class WarmIn(BaseModel):
+    profile_id: int | None = None
+    workflow_id: int | None = None
 
 
 class ExtQuestionIn(BaseModel):
@@ -563,6 +569,21 @@ async def runs_create(body: RunIn, user: User = Depends(auth.current_user)) -> d
     return workflow.start_run(profile, wf, body.question.strip(), source="ui", send_telegram=body.send_telegram)
 
 
+def _prepare(user: User, body: WarmIn) -> dict[str, Any]:
+    """Start Claude ahead of the next question for one of the user's profiles."""
+    if body.profile_id:
+        profile = db.get_profile(body.profile_id, user["id"])
+    else:
+        profile = next(iter(db.list_profiles(user["id"])), None)
+    wf = workflow.resolve_workflow(profile, body.workflow_id) if profile else None
+    return {"ready": bool(profile and wf and workflow.prepare(profile, wf))}
+
+
+@app.post("/api/runs/warm")
+async def runs_warm(body: WarmIn, user: User = Depends(auth.current_user)) -> dict[str, Any]:
+    return _prepare(user, body)
+
+
 @app.get("/api/runs/{run_id}")
 def runs_get(run_id: int, request: Request) -> dict[str, Any]:
     return _visible_run(run_id, request)
@@ -794,6 +815,12 @@ def ext_ping(user: User = Depends(auth.extension_user)) -> dict[str, Any]:
             for p in db.list_profiles(user["id"])
         ],
     }
+
+
+@app.post("/api/ext/warm")
+async def ext_warm(body: WarmIn, user: User = Depends(auth.extension_user)) -> dict[str, Any]:
+    """Called by the extension when a call starts, so the first answer is fast too."""
+    return _prepare(user, WarmIn(profile_id=body.profile_id))
 
 
 @app.post("/api/ext/questions", status_code=201)

@@ -70,6 +70,12 @@ export async function askView(root) {
     sendHint.textContent = hasChat ? `chat ${profile.telegram_chat_id}` : 'no chat ID on this profile';
   }
 
+  // Have the server start Claude for this profile now, so the answer does not wait for it.
+  function getReady() {
+    if (!status.can_generate) return;
+    api('POST', '/runs/warm', { profile_id: profile.id, workflow_id: Number(workflowSelect.value) || null }).catch(() => {});
+  }
+
   function addCard(run, { top }) {
     if (cards.has(run.id)) return;
     const card = runCard(run);
@@ -121,8 +127,10 @@ export async function askView(root) {
     profile = profiles.find((p) => p.id === Number(profileSelect.value));
     remember(profile.id);
     syncProfile();
+    getReady();
     await loadFeed().catch((error) => toast(error.message, 'error'));
   });
+  workflowSelect.addEventListener('change', getReady);
   askButton.addEventListener('click', ask);
   question.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
@@ -152,6 +160,7 @@ export async function askView(root) {
   );
 
   syncProfile();
+  getReady();
   await loadFeed();
   question.focus();
   const timer = setInterval(pollNew, REFRESH_MS);

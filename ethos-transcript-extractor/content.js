@@ -1,4 +1,4 @@
-/* Ethos Copilot — content script (v1.8)
+/* Ethos Copilot — content script (v1.9)
  * - Joins a panel onto the Ethos call window so the two read as one modal, centered on screen.
  * - Opens the call's transcript automatically ("View transcript").
  * - Reads the transcript (one block per message; right-aligned = you).
@@ -274,6 +274,16 @@
     while (i >= 0 && !(segs[i] && segs[i].text.includes(q.text))) i--;
     if (i < 0) return { question: q.context || q.text, context: '' };
     return { question: segs[i].text, context: contextUpTo(i - 1) };
+  }
+  // Ask the server to start Claude before a question arrives. Starting it takes a
+  // few seconds, which would otherwise be added to the first answer of a call;
+  // the server lets an unused one expire, so this repeats while a call is on.
+  const WARM_EVERY_MS = 4 * 60 * 1000;
+  let lastWarm = 0;
+  function warmApp(force) {
+    if (!appReady() || (!force && Date.now() - lastWarm < WARM_EVERY_MS)) return;
+    lastWarm = Date.now();
+    appCall('POST', '/api/ext/warm', { profile_id: Number(settings.appProfileId) || null });
   }
   const answerText = (a) =>
     a.status === 'error' ? '⚠ ' + (a.error || 'Could not generate an answer')
@@ -1028,6 +1038,7 @@
         settings = { ...settings, ...readSettingsForm() };
         await chrome.storage.local.set({ settings });
         flash('Saved'); view = 'questions';
+        if (callActive) warmApp(true);   // the chosen profile may have changed
         if (mode !== 'pill') setMode(settings.dock && card ? 'docked' : 'floating'); else render();
         break;
       case 'findchat': {
@@ -1114,6 +1125,7 @@
     }
     if (!initial) firstPass = false;  // answer the very first question of a new call too
     userHid = false; autoClicks = 0;
+    warmApp(true);
     if (!closedByUser) setMode(settings.dock ? 'docked' : 'floating');
   }
   function onCallEnd() {
@@ -1133,6 +1145,7 @@
     }
     started = true;
     if (callActive) {
+      warmApp(false);
       autoOpenTranscript();
       const st = findTextEl(STATUS_RE, card);
       pageStatus = st && textOf(st).length < 40 ? textOf(st) : '';
@@ -1177,6 +1190,7 @@
     settings = { ...settings, ...changes.settings.newValue };
     if (before !== settings.appKey + '|' + settings.appUrl) {   // signed in, out, or switched account
       appProfiles = []; appNotice = '';
+      if (callActive) warmApp(true);
       if (view === 'settings') renderSettings(); else render();
     }
   });
