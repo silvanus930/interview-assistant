@@ -26,8 +26,7 @@ export async function askView(root) {
   const blocked = status.can_generate
     ? null
     : h('div', { class: 'banner' }, h('span', null, status.access_message),
-        // Only an API-key server has an access request to make under Account.
-        status.auth_mode === 'api_key' ? h('a', { class: 'button small', href: '#/account' }, 'Open Account') : null);
+        h('a', { class: 'button small', href: '#/account' }, 'Open Account'));
 
   if (!profiles.length) {
     mount(

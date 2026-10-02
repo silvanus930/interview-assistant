@@ -202,10 +202,6 @@ def resolve_workflow(profile: dict[str, Any], workflow_id: int | None = None) ->
     return db.get_default_workflow(owner)
 
 
-SUBSCRIPTION_ONLY_ADMIN = (
-    "On this server only administrators can generate answers: it runs on the administrator's personal "
-    "Claude subscription, which is for its owner only."
-)
 ACCESS_MESSAGES = {
     "none": "Your account cannot generate answers yet. Request access under Account; an administrator will review it.",
     "pending": "Your request to generate answers is waiting for an administrator to approve it.",
@@ -216,14 +212,9 @@ ACCESS_MESSAGES = {
 def access_block(user: dict[str, Any], settings: dict[str, str] | None = None) -> str:
     """Why this account cannot generate answers, or "" if it can.
 
-    A personal Claude subscription may serve its owner only, so on one only
-    administrators generate. On an API key, other accounts need an
-    administrator's approval."""
+    Administrators always can; other accounts need an administrator's approval."""
     if user["role"] == "admin":
         return ""
-    settings = settings or db.get_settings()
-    if settings["auth_mode"] != "api_key":
-        return SUBSCRIPTION_ONLY_ADMIN
     return ACCESS_MESSAGES.get(user.get("access_status") or "none", "")
 
 

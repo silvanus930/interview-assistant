@@ -26,9 +26,6 @@ export async function overviewView(root) {
     root,
     h('div', { class: 'title' }, h('div', null, h('h1', null, 'Overview'), h('div', { class: 'sub' }, 'Usage across every account on this server.')), h('a', { class: 'button primary', href: '#/users' }, 'Manage users')),
 
-    o.auth_mode === 'subscription' && o.users > 1
-      ? h('div', { class: 'banner info' }, h('span', null, 'This server runs on your personal Claude subscription, so only administrator accounts generate answers. Other users can sign in and manage their profiles and workflows.'))
-      : null,
 
     h(
       'div',

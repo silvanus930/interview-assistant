@@ -67,8 +67,7 @@ export async function accountView(root) {
       h('p', { class: 'hint' }, message || 'Your account can generate answers.'),
     );
   }
-  // On a personal subscription only admins generate, so there is nothing to request.
-  const canRequest = account.role !== 'admin' && status.auth_mode === 'api_key';
+  const canRequest = account.role !== 'admin';
   if (canRequest) renderAccess(account.access_status, status.access_message);
 
   const serverUrl = h('input', { type: 'text', readOnly: true, value: location.origin });

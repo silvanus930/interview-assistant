@@ -42,8 +42,10 @@ Accounts are created by an administrator; there is no public sign-up. A new user
 
 Set under **Claude & Telegram**:
 
-- **Anthropic API key** — pay-per-use. Administrators can always generate answers; any other account needs an administrator's approval. A user requests it under **Account → Answer access**; the request shows up at the top of **Users**, where the administrator accepts or rejects it (and can later grant or revoke access from the user's row). Use this when the server has users other than you.
-- **Personal Claude subscription (Pro / Max)** — uses the Claude Code login on the server (`claude` once in a terminal to log in). A personal subscription is for its owner, so in this mode **only administrator accounts can generate answers**; other users see a message asking the administrator to switch to an API key. Anthropic does not allow a subscription's login or limits to be offered to other people through a product, and this rule keeps the server within that.
+- **Anthropic API key** — pay-per-use.
+- **Personal Claude subscription (Pro / Max)** — uses the Claude Code login on the server (`claude` once in a terminal to log in). Anthropic's terms do not allow a personal subscription to be offered to other people, so approve other users in this mode only if your use is within those terms.
+
+In both modes administrators can always generate answers; any other account needs an administrator's approval. A user requests it under **Account → Answer access**; the request shows up at the top of **Users**, where the administrator accepts or rejects it (and can later grant or revoke access from the user's row).
 
 **Models.** The administrator keeps the list of models users may choose. For each answer the model is the workflow step's choice, else the user's preference (Account), else the server default. A choice that is not on the list falls back to the next one. The aliases `opus`, `sonnet` and `haiku` follow the newest version the server's Claude Code supports; update Claude Code to unlock newer models.
 
