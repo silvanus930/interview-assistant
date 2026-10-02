@@ -25,7 +25,9 @@ export async function askView(root) {
   // Say why this account cannot generate answers before they try.
   const blocked = status.can_generate
     ? null
-    : h('div', { class: 'banner' }, h('span', null, status.access_message), h('a', { class: 'button small', href: '#/account' }, 'Open Account'));
+    : h('div', { class: 'banner' }, h('span', null, status.access_message),
+        // Only an API-key server has an access request to make under Account.
+        status.auth_mode === 'api_key' ? h('a', { class: 'button small', href: '#/account' }, 'Open Account') : null);
 
   if (!profiles.length) {
     mount(
@@ -55,7 +57,7 @@ export async function askView(root) {
     rows: 3,
     placeholder: 'Type or paste the interview question…  (Ctrl+Enter to send)',
   });
-  const askButton = h('button', { class: 'primary' }, 'Generate answer');
+  const askButton = h('button', { class: 'primary', disabled: !status.can_generate, title: status.can_generate ? null : status.access_message }, 'Generate answer');
   const feed = h('div', { class: 'feed' });
 
   function syncProfile() {
@@ -105,6 +107,7 @@ export async function askView(root) {
   }
 
   async function ask() {
+    if (!status.can_generate) return;
     const text = question.value.trim();
     if (!text) {
       question.focus();

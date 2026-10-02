@@ -582,6 +582,9 @@ def runs_list(limit: int = 100, profile_id: int | None = None,
 
 @app.post("/api/runs", status_code=201)
 async def runs_create(body: RunIn, user: User = Depends(auth.current_user)) -> dict[str, Any]:
+    blocked = workflow.access_block(user)
+    if blocked:
+        raise HTTPException(403, blocked)  # refuse up front rather than record a failed answer
     profile = _or_404(db.get_profile(body.profile_id, user["id"]), "Profile")
     wf = _or_404(workflow.resolve_workflow(profile, body.workflow_id), "Workflow")
     return workflow.start_run(profile, wf, body.question.strip(), source="ui", send_telegram=body.send_telegram)
