@@ -23,8 +23,9 @@ ALLOWED_HOSTS = [
 ]
 # The administrator account created on first start, when the server has no
 # accounts yet. There is no setup screen; change the password under Account.
+# Without INTERVIEW_ADMIN_PASSWORD a random password is generated and logged once.
 DEFAULT_ADMIN_EMAIL = os.environ.get("INTERVIEW_ADMIN_EMAIL") or "silvanus97930@gmail.com"
-DEFAULT_ADMIN_PASSWORD = os.environ.get("INTERVIEW_ADMIN_PASSWORD") or "!vidrnd930!"
+DEFAULT_ADMIN_PASSWORD = os.environ.get("INTERVIEW_ADMIN_PASSWORD") or ""
 DEFAULT_ADMIN_NAME = os.environ.get("INTERVIEW_ADMIN_NAME") or "Administrator"
 SESSION_DAYS = 30
 MIN_PASSWORD_LENGTH = 8

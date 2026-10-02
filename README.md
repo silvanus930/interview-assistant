@@ -20,7 +20,7 @@ python -m venv .venv
 
 The app opens at <http://127.0.0.1:8765>. Requirements: Python 3.10+ and [Claude Code](https://claude.com/claude-code) installed on the server.
 
-On first start, when the server has no accounts, it creates the **administrator account** from `INTERVIEW_ADMIN_EMAIL` and `INTERVIEW_ADMIN_PASSWORD` (defaults are in `app/config.py`); there is no setup screen. Sign in with it and change the password under **Account**. If the server already held data from before accounts existed, that account takes it over (profiles, workflows, history, and the extension's existing connection).
+On first start, when the server has no accounts, it creates the **administrator account** from `INTERVIEW_ADMIN_EMAIL` and `INTERVIEW_ADMIN_PASSWORD` (if no password is set, it generates one and prints it once in the server log); there is no setup screen. Sign in with it and change the password under **Account**. If the server already held data from before accounts existed, that account takes it over (profiles, workflows, history, and the extension's existing connection).
 
 ## Roles
 

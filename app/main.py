@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+import secrets
 import time
 from contextlib import asynccontextmanager
 from typing import Any, Literal
@@ -39,8 +40,12 @@ listener = telegram.TelegramListener(on_telegram_question)
 async def lifespan(_: FastAPI):
     db.init_db()
     if db.count_users() == 0:
+        password = DEFAULT_ADMIN_PASSWORD or secrets.token_urlsafe(12)
         db.create_user(email=DEFAULT_ADMIN_EMAIL, name=DEFAULT_ADMIN_NAME,
-                       password_hash=auth.hash_password(DEFAULT_ADMIN_PASSWORD), role="admin")
+                       password_hash=auth.hash_password(password), role="admin")
+        if not DEFAULT_ADMIN_PASSWORD:
+            logging.getLogger(__name__).warning(
+                "Created administrator %s with password %s (change it under Account)", DEFAULT_ADMIN_EMAIL, password)
     await listener.restart()
     yield
     await listener.stop()
